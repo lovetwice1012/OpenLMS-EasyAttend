@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{56E74A7D-0DD1-40F9-858B-2B0F13E12074}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>IPUT出席登録</RootNamespace>
-    <AssemblyName>IPUT出席登録</AssemblyName>
+    <RootNamespace>OpenLMS_EasyAttend</RootNamespace>
+    <AssemblyName>OpenLMS-EasyAttend</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -227,6 +227,7 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.manifest" />
     <None Include="packages.config" />

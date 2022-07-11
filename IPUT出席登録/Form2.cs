@@ -123,26 +123,26 @@ namespace IPUT出席登録
             if (debug) Console.WriteLine(v);
         }
 
-        public Form2(string[] args,string tokenparam,IBrowsingContext context)
+        public Form2(string[] args, IBrowsingContext context)
         {
             InitializeComponent();
             option = args;
+            
             if (option.Length != 0)
             {
                 if (option[0] == "--debug") debug = true;
             }
-            token = tokenparam;
+
             this.context = context;
         }
 
         private async void Button1_Click(object sender, EventArgs e)
         {
-            //string attendurl = "https://lms-tokyo.iput.ac.jp/mod/attendance/attendance.php?sessid=";
-            string attendmoduleurl = "https://lms-tokyo.iput.ac.jp/mod/attendance/view.php?id=";
+            string attendmoduleurl = "";
             bool ORflag = false;
             bool ORChangeSTflag = false;
             string ORChangeST = "9:30";
-            
+
             if (debuguseronly && !debug)
             {
                 MessageBox.Show("この機能はまだ利用できません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -151,53 +151,73 @@ namespace IPUT出席登録
 
             Dprint("override.jsonのデータ取得");
             string ORjsonStr = ReadAllLine("override.json", "utf-8");
-            if (ORjsonStr != null)
+            
+            if (ORjsonStr == null)
             {
-                try
+                MessageBox.Show("override.jsonが見つかりませんでした。\n[ERROR]OpenLMS-EasyAttend.exeと同じディレクトリにoverride.jsonが存在するか確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                ORData[] ORjsonData;
+                ORjsonData = JsonSerializer.Deserialize<ORData[]>(ORjsonStr);
+                foreach (var data in ORjsonData)
                 {
-                    ORData[] ORjsonData;
-                    ORjsonData = JsonSerializer.Deserialize<ORData[]>(ORjsonStr);
-                    foreach (var data in ORjsonData)
+                    if (data.attendmoduleurl == null && data.attendmoduleurl == "")
                     {
-                        if ( data.attendmoduleurl != null && data.attendmoduleurl != "" && data.attendmoduleurl != "https://lms-tokyo.iput.ac.jp/mod/attendance/view.php?id=")
-                        {
-                            attendmoduleurl = data.attendmoduleurl;
-                            ORflag = true;
-                        }
-
-                        if(data.Start_time != "9:30")
-                        {
-                            if(data.Start_time.Split(':').Length==1 || Int32.Parse(data.Start_time.Split(':')[0]) > 23|| Int32.Parse(data.Start_time.Split(':')[0]) < 0 || data.Start_time.Split(':')[1] == null || Int32.Parse(data.Start_time.Split(':')[1]) > 59 || Int32.Parse(data.Start_time.Split(':')[1]) < 0)
-                            {
-                                MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\n[ERROR]Start_timeの値が不正です。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                                return;
-                            }
-                            ORChangeST = data.Start_time;
-                            ORChangeSTflag = true;
-                            ORflag = true;
-                        }
-
+                        continue;
                     }
+
+
+                    attendmoduleurl = data.attendmoduleurl;
+                    ORflag = true;
+
+                    if (data.Start_time != "9:30")
+                    {
+                        
+                        if (data.Start_time.Split(':').Length == 1 || Int32.Parse(data.Start_time.Split(':')[0]) > 23 || Int32.Parse(data.Start_time.Split(':')[0]) < 0 || data.Start_time.Split(':')[1] == null || Int32.Parse(data.Start_time.Split(':')[1]) > 59 || Int32.Parse(data.Start_time.Split(':')[1]) < 0)
+                        {
+                            MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\n[ERROR]Start_timeの値が不正です。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+
+                        ORChangeST = data.Start_time;
+                        ORChangeSTflag = true;
+                        ORflag = true;
+                    }
+
                 }
-                catch (JsonException)
+
+                if (attendmoduleurl == "")
                 {
-                    MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\noverride.jsonの書式や項目の数が正確か確認してから再試行してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\n[ERROR]attendmoduleurlの値が不正です。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
             }
+            catch (JsonException)
+            {
+                MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\noverride.jsonの書式や項目の数が正確か確認してから再試行してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
 
-                Dprint("本日の予定の取得処理開始");
+
+
+            Dprint("本日の予定の取得処理開始");
             string jsonStr = ReadAllLine("attendance.json", "utf-8");
 
             if (jsonStr == null)
             {
-                MessageBox.Show("attendance.jsonが見つかりませんでした。\nIPUT出席登録.exeと同じディレクトリにattendance.jsonが存在するか確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("attendance.jsonが見つかりませんでした。\nOpenLMS-EasyAttend.exeと同じディレクトリにattendance.jsonが存在するか確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+
             Dprint(jsonStr);
+            
             Data[] jsonData;
+            
             try
             {
                 jsonData = JsonSerializer.Deserialize<Data[]>(jsonStr);
@@ -213,10 +233,12 @@ namespace IPUT出席登録
             int ddd = GetDoWint(dt.ToString("ddd"));
             string result = dt.ToString("HH:mm");
             TimeSpan ts1 = TimeSpan.Parse("9:30");
-            if(ORflag && ORChangeSTflag)
+
+            if (ORflag && ORChangeSTflag)
             {
                 ts1 = TimeSpan.Parse(ORChangeST);
             }
+            
             TimeSpan ts2 = TimeSpan.Parse(result);
             TimeSpan ts3 = ts2 - ts1;
 
@@ -224,16 +246,11 @@ namespace IPUT出席登録
 
             int id = 0;
             string name = "";
+
             foreach (var data in jsonData)
             {
-                Dprint("---------");
-                Dprint(data.Id);
-                Dprint(data.Name);
-                Dprint(data.Period);
-                Dprint(data.DoW);
-
                 if (data.Id == 0) continue;
-                if (ddd != data.DoW || GetTimefromPeriod(data.Period) > ts3.TotalMinutes || (GetTimefromPeriod(data.Period)+15) < ts3.TotalMinutes) continue;
+                if (ddd != data.DoW || GetTimefromPeriod(data.Period) > ts3.TotalMinutes || (GetTimefromPeriod(data.Period) + 15) < ts3.TotalMinutes) continue;
                 id = data.Id;
                 name = data.Name;
             }
@@ -257,7 +274,7 @@ namespace IPUT出席登録
 
 
             Match match = Regex.Match(doc.ToHtml(), @"https://lms-tokyo.iput.ac.jp/mod/attendance/attendance\.php\?sessid=\d{5}&amp;sesskey=\w{10}");
-            
+
             if (match == null)
             {
                 MessageBox.Show("出席可能な講義が見つかりませんでした。\n出席登録可能な時間を過ぎてしまった可能性があります。\nもしこれが間違いだと思われる場合はattendance.jsonの設定を見直してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -285,7 +302,8 @@ namespace IPUT出席登録
             Dprint("ログイン結果：");
             bool Authresult = context.Active.ToHtml().Contains("このセッションのあなたの出欠が記録されました。");
 
-            Dprint(Authresult);           
+            Dprint(Authresult);
+
             if (Authresult)
             {
                 Dprint("出席登録成功");
@@ -296,8 +314,9 @@ namespace IPUT出席登録
             {
                 Dprint("出席登録失敗");
                 Dprint("エラーメッセージ表示");
-                MessageBox.Show("認証に失敗しました。パスワードを確認してください。\n３回間違えるとロックがかかります。\n出席を試みた講義:"+name, "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("認証に失敗しました。パスワードを確認してください。\n３回間違えるとロックがかかります。\n出席を試みた講義:" + name, "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+
         }
     }
 }

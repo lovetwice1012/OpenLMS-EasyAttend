@@ -63,7 +63,7 @@ namespace IPUT出席登録
                 if (option[0] == "--debug") debug = true;
                 if (option.Length >= 1) retrylimit = Int32.Parse(option[1]);
             }
-            
+
             Dprint("ログインフォーム初期化開始");
             InitializeComponent();
             Dprint("レジストリ確認");
@@ -82,7 +82,7 @@ namespace IPUT出席登録
             ID = (string)key.GetValue("ID");
             Dprint("レジストリからPASSWORDを取得");
             PASSWORD = (string)key.GetValue("PASSWORD");
-            Dprint("ID:"+ID.ToString());
+            Dprint("ID:" + ID.ToString());
             Dprint("PASSWORD:" + PASSWORD.ToString());
             key.Close();
             Dprint("レジストリから取得したデータを確認(開発者デバッグ用)");
@@ -142,30 +142,38 @@ namespace IPUT出席登録
         async private void Login(bool autologin)
         {
             Dprint("ログイン画面URL:");
-            var urlstring = "https://lms-tokyo.iput.ac.jp/login/index.php";
+            var urlstring = "";
 
             Dprint("override.jsonのデータ取得");
             string ORjsonStr = ReadAllLine("override.json", "utf-8");
-            if (ORjsonStr != null)
+            if (ORjsonStr == null)
             {
-                try
+                MessageBox.Show("override.jsonが見つかりませんでした。\n[ERROR]OpenLMS-EasyAttend.exeと同じディレクトリにoverride.jsonが存在するか確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                ORData[] ORjsonData;
+                ORjsonData = JsonSerializer.Deserialize<ORData[]>(ORjsonStr);
+                foreach (var data in ORjsonData)
                 {
-                    ORData[] ORjsonData;
-                    ORjsonData = JsonSerializer.Deserialize<ORData[]>(ORjsonStr);
-                    foreach (var data in ORjsonData)
+                    if (data.mainurl == null && data.mainurl == "")
                     {
-                        if (data.mainurl != null && data.mainurl != "" && data.mainurl != "https://lms-tokyo.iput.ac.jp/login/index.php")
-                        {
-                            urlstring = data.mainurl;
-                        }
+                        continue;
                     }
+                    urlstring = data.mainurl;
                 }
-                catch (JsonException)
+                if (urlstring == "")
                 {
-                    MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\noverride.jsonの書式や項目の数が正確か確認してから再試行してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\n[ERROR]mainurlの値が不正です。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
-
+            }
+            catch (JsonException)
+            {
+                MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\noverride.jsonの書式や項目の数が正確か確認してから再試行してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
 
             Dprint(urlstring);
@@ -178,15 +186,10 @@ namespace IPUT出席登録
             string title = doc.Title;
             Dprint("タイトル:");
             Dprint(title);
-            Dprint("ログインフォーム取得");
-            IElement logintokenselector = doc.QuerySelector("#login");
-            Dprint("ログイントークン取得");
-            string logintokentext = logintokenselector.FirstElementChild.GetAttribute("value");
-            Dprint("ログイントークン:");
-            Dprint(logintokentext);
-            string anchortext = "";
+
             string id;
             string pass;
+
             if (autologin)
             {
                 id = ID;
@@ -197,27 +200,31 @@ namespace IPUT出席登録
                 id = userid.Text;
                 pass = password.Text;
             }
+
             Dprint("ID:");
             Dprint(id);
             Dprint("PASSWORD:");
             Dprint(pass);
             Dprint("ログイン試行中");
+
             _ = await context.Active.QuerySelector<IHtmlFormElement>("form").SubmitAsync(new
             {
                 username = id,
-                password = pass,
-                logintoken = logintokentext,
-                anchor = anchortext
+                password = pass
             });
+
             string AfterLoginURL = context.Active.Url;
+
             Dprint("ログイン結果：");
             Dprint(AfterLoginURL != urlstring);
             Dprint("ログイン後URL:");
             Dprint(AfterLoginURL);
+            
             if (AfterLoginURL != urlstring)
             {
                 Dprint("ログイン成功");
                 Dprint("レジストリに登録されているデータに変更があったか確認");
+
                 if (!autologin && (ID != userid.Text || PASSWORD != password.Text))
                 {
                     Dprint("レジストリデータを更新中");
@@ -230,32 +237,20 @@ namespace IPUT出席登録
                 {
                     Dprint("レジストリデータを更新する必要はありません");
                 }
+
                 Dprint("ログインフォーム非表示");
+                
                 Visible = false;
+                
                 if (autologin)
                 {
                     Dprint("自動認証フォーム非表示");
                     form3.Hide();
                 }
-                /*
-                Dprint("トークン取得処理開始");
-                String token_URL = "https://lms-tokyo.iput.ac.jp/login/token.php?username="+id+"&password="+pass+"&service=moodle_mobile_app";
-                Dprint("トークン取得処理アクセス先URL:");
-                Dprint(token_URL);
-                Dprint("リクエスト開始");
-                WebRequest req = WebRequest.Create(token_URL);
-                Stream res_stream = req.GetResponse().GetResponseStream();
-                Dprint("レスポンス解析");
-                StreamReader reader = new StreamReader(res_stream);
-                Dprint("JSON解析");
-                var json = JObject.Parse(reader.ReadToEnd());
-                Dprint("JSONからトークンを取得");
-                token = (string)json.GetValue("token");
-                Dprint("トークン:");
-                Dprint(token);
-                */
+
                 Dprint("出席パスワード入力フォーム表示");
-                new Form2(option,token,context).Show();
+                
+                new Form2(option,context).Show();
             }
             else
             {
@@ -264,6 +259,7 @@ namespace IPUT出席登録
                 Dprint(retrylimit.ToString());
                 Dprint("再試行回数:");
                 Dprint(retry.ToString());
+
                 if (retry < retrylimit)
                 {
                     Dprint("再試行開始");
@@ -276,6 +272,7 @@ namespace IPUT出席登録
                 Dprint("再試行回数が上限に達しました");
                 Dprint("再試行回数初期化");
                 retry = 1;
+
                 if (autologin)
                 {
                     Dprint("自動認証フォーム非表示");
@@ -288,6 +285,7 @@ namespace IPUT出席登録
                     Dprint("エラーメッセージ表示");
                     MessageBox.Show("認証に失敗しました。IDとパスワードを確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+
                 Dprint("ログインフォーム表示");
                 Visible = true;
             }
