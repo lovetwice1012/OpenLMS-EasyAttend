@@ -173,7 +173,7 @@ namespace IPUT出席登録
                     attendmoduleurl = data.attendmoduleurl;
                     ORflag = true;
 
-                    if (data.Start_time != "9:30")
+                    if (data.Start_time !=null && data.Start_time != "9:30")
                     {
                         
                         if (data.Start_time.Split(':').Length == 1 || Int32.Parse(data.Start_time.Split(':')[0]) > 23 || Int32.Parse(data.Start_time.Split(':')[0]) < 0 || data.Start_time.Split(':')[1] == null || Int32.Parse(data.Start_time.Split(':')[1]) > 59 || Int32.Parse(data.Start_time.Split(':')[1]) < 0)
