@@ -62,9 +62,6 @@ namespace IPUT出席登録
 
         public int GetTimefromPeriod(int num)
         {
-            Dprint("*********");
-            Dprint(num);
-            Dprint("*********");
             switch (num)
             {
                 case 1:
@@ -138,10 +135,12 @@ namespace IPUT出席登録
 
         private async void Button1_Click(object sender, EventArgs e)
         {
-            string attendmoduleurl = "";
             bool ORflag = false;
             bool ORChangeSTflag = false;
             string ORChangeST = "9:30";
+            IBrowsingContext context = this.context;
+            String defaultdomain = context.Active.Url;
+            string attendmoduleurl = defaultdomain + "mod/attendance/view.php?id=";
 
             if (debuguseronly && !debug)
             {
@@ -164,14 +163,11 @@ namespace IPUT出席登録
                 ORjsonData = JsonSerializer.Deserialize<ORData[]>(ORjsonStr);
                 foreach (var data in ORjsonData)
                 {
-                    if (data.attendmoduleurl == null && data.attendmoduleurl == "")
+                    if (data.attendmoduleurl != null && data.attendmoduleurl != "")
                     {
-                        continue;
-                    }
-
-
-                    attendmoduleurl = data.attendmoduleurl;
-                    ORflag = true;
+                        attendmoduleurl = data.attendmoduleurl;
+                        ORflag = true;
+                    }                    
 
                     if (data.Start_time !=null && data.Start_time != "9:30")
                     {
@@ -189,12 +185,6 @@ namespace IPUT出席登録
 
                 }
 
-                if (attendmoduleurl == "")
-                {
-                    MessageBox.Show("override.jsonを読み込む際にエラーが発生しました。\n[ERROR]attendmoduleurlの値が不正です。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
             }
             catch (JsonException)
             {
@@ -202,7 +192,7 @@ namespace IPUT出席登録
                 return;
             }
 
-
+            Dprint(attendmoduleurl);
 
 
             Dprint("本日の予定の取得処理開始");
@@ -262,7 +252,8 @@ namespace IPUT出席登録
             }
 
             attendmoduleurl += id;
-            IBrowsingContext context = this.context;
+
+
             Dprint("URLアクセス開始");
             IDocument doc = await context.OpenAsync(attendmoduleurl);
             Dprint("データ取得完了");
@@ -273,7 +264,7 @@ namespace IPUT出席登録
             string url;
 
 
-            Match match = Regex.Match(doc.ToHtml(), @"https://lms-tokyo.iput.ac.jp/mod/attendance/attendance\.php\?sessid=\d{5}&amp;sesskey=\w{10}");
+            Match match = Regex.Match(doc.ToHtml(), defaultdomain + @"mod/attendance/attendance\.php\?sessid=\d{5}&amp;sesskey=\w{10}");
 
             if (match == null)
             {
