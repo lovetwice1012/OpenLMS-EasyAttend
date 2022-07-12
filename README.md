@@ -1,1 +1,1 @@
-# IPUT出席登録
+# OpenLMS-EasyAttend
